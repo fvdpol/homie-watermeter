@@ -20,19 +20,16 @@ Enable read-out of the water meter to get measurement of this meter in OpenHAB u
 // receive count from mqtt on intermediate tag; OpenHAB Rule will perform filter/log to update to total
 // OR reset the instrument to previous value if it was restarted
 
-Number WaterMeter_TotalReceived  "Water Total Received[%d l]" <water> (Utilities, Water, F0_MeterCupboard) {mqtt="<[mosquitto:hom
-ie/600194100ff2/watertotal/total:state:default]"}
-Number WaterMeter_Total  "Water Total [%d l]" <water>  (Utilities, Water, F0_MeterCupboard)
-Number WaterMeter_Flow   "Water Flow [%.1f l/m]" <water>  (Utilities, Water, F0_MeterCupboard) {mqtt="<[mosquitto:homie/600194100
-ff2/waterflow/flow:state:default]"}
+Number WaterMeter_TotalReceived  "Water Total Received[%d l]" <water> () {mqtt="<[mosquitto:homie/600194100ff2/watertotal/total:state:default]"}
+Number WaterMeter_Total  "Water Total [%d l]"    <water>  (Utilities, Water, F0_MeterCupboard)
+Number WaterMeter_Flow   "Water Flow [%.1f l/m]" <water>  (Utilities, Water, F0_MeterCupboard) {mqtt="<[mosquitto:homie/600194100ff2/waterflow/flow:state:default]"}
 
-Number WaterMeter_Uptime  "Water Uptime [%d s]"    <water>  (Utilities, Water, F0_MeterCupboard) {mqtt="<[mosquitto:homie/6001941
-00ff2/$stats/uptime:state:default]"}
+Number WaterMeter_Uptime "Water Uptime [%d s]"   <water>  (Utilities, Water, F0_MeterCupboard) {mqtt="<[mosquitto:homie/600194100ff2/$stats/uptime:state:default]"}
 ```
 
 ### rules
 ```xtend
-/* rules to handle the home watercounter */
+/* rules to handle the home water counter */
 
 rule "Handle water meter update"
 when
