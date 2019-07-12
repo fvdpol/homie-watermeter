@@ -8,7 +8,11 @@
 // report on flowrate: l/map
 // allow update/reset of totalizer from mqtt message
 // totalizer; use persistence in mqtt server to survive reset if possible; otherwise reset using rule in OpenHAB
-
+//
+// 12 July 2019 issue with the counter value being reset to old value due to the watertotal/total/set being retained
+//              solution is to decouple the reset from the counter, and have
+//              - counter set as retained, not-settable
+//              - reset   set as non-retained, settable
 
 
 const int PIN_SENSOR = D1;  // D1 or gpio5
@@ -25,8 +29,9 @@ bool startupFlag = true;
 Bounce debouncer = Bounce(); // Bounce is built into Homie, so you can use it without including it first
 int lastSensorValue = -1;
 
-HomieNode waterCounterNode("watertotal", "total");
-HomieNode waterFlowNode("waterflow", "flow");
+HomieNode waterCounterNode("counter", "value","counter");
+HomieNode waterCounterResetNode("counterreset", "value","reset");
+HomieNode waterFlowNode("flow", "value","measurement");
 
 
 void onHomieEvent(const HomieEvent& event) {
@@ -81,10 +86,8 @@ void onHomieEvent(const HomieEvent& event) {
 
 
 void setupHandler() {
-
-  //temperatureNode.setProperty("unit").send("c");
-
   waterCounterNode.setProperty("unit").send("l");
+  waterCounterResetNode.setProperty("unit").send("l");
   waterFlowNode.setProperty("unit").send("l/m");
 }
 
@@ -92,7 +95,6 @@ void setupHandler() {
 
 void loopHandler() {
   if (millis() - lastValueSent >= MEASURE_INTERVAL * 1000UL || (millis() < lastValueSent || startupFlag)) {
-
     float duration_m = ((millis() - lastValueSent) / (60.0 * 1000.0));  // elapsed minutes
     float flow = ((totalCount - lastTotalCountSent) * 1.0) / duration_m;  // flow in liters/minute
 
@@ -102,8 +104,8 @@ void loopHandler() {
     Homie.getLogger() << "Flow: " << flow << " l/m" << endl;
     Homie.getLogger() << "Total: " << totalCount << " l" << endl;
 
-    waterFlowNode.setProperty("flow").send(String(flow));
-    waterCounterNode.setProperty("total").send(String(totalCount));
+    waterFlowNode.setProperty("value").send(String(flow));
+    waterCounterNode.setProperty("value").send(String(totalCount));
 
     startupFlag = false;
 
@@ -112,9 +114,6 @@ void loopHandler() {
 
   int sensorValue = debouncer.read();
   if (sensorValue != lastSensorValue) {
-     //Homie.getLogger() << "Sensor is now " << (sensorValue ? "on" : "off") << endl;
-     //sensorNode.setProperty("open").send(sensorValue ? "true" : "false");
-
      lastSensorValue = sensorValue;
 
      if (sensorValue != 0) {
@@ -140,7 +139,7 @@ bool WaterCounterResetInputHandler(const HomieRange& range, const String& value)
     lastValueSent = millis();
 
     // send value to provide immediate feedback
-    waterCounterNode.setProperty("total").send(String(totalCount));
+    waterCounterNode.setProperty("value").send(String(totalCount));
 
     return true;
 
@@ -165,16 +164,20 @@ void setup() {
   debouncer.interval(5); // was 50
 
 
-  Homie_setFirmware("watermeter", "1.0.1");
+  Homie_setFirmware("watermeter", "1.0.5");
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
 
   waterCounterNode.advertise("unit");
-  waterCounterNode.advertise("total").settable(WaterCounterResetInputHandler);
-      // (re)settable total count by sending mqtt message homie/node/watertotal/total/set 12345
+  waterCounterNode.advertise("value");
+      // old: (re)settable total count by sending mqtt message homie/node/watertotal/total/set 12345
+      
+  waterCounterResetNode.advertise("unit");
+  waterCounterResetNode.advertise("value").setRetained(false).settable(WaterCounterResetInputHandler);
+      // new: (re)settable total count by sending mqtt message homie/node/watertotalreset/reset/set 12345
 
 
   waterFlowNode.advertise("unit");
-  waterFlowNode.advertise("flow");
+  waterFlowNode.advertise("value");
 
 
   Homie.onEvent(onHomieEvent);
